@@ -1,6 +1,6 @@
 [project]
 name = "ha-propane-tracker"
-version = "0.1.0"
+version = "0.1.1"
 description = "Manual propane delivery ledger and Energy statistics for Home Assistant"
 authors = [
     { name = "Martin Emde", email = "me@martinemde.com" },
