@@ -1,0 +1,65 @@
+{
+  "title": "Propane Tracker",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Propane Tracker",
+        "description": "Create a durable local ledger for propane deliveries and publish backdated usage and cost statistics for the Energy dashboard."
+      }
+    },
+    "abort": {
+      "already_configured": "Propane Tracker is already configured."
+    }
+  },
+  "entity": {
+    "button": {
+      "record_delivery": {
+        "name": "Record delivery"
+      }
+    },
+    "date": {
+      "delivery_date": {
+        "name": "Delivery date"
+      }
+    },
+    "number": {
+      "delivery_gallons": {
+        "name": "Gallons delivered"
+      },
+      "price_per_gallon": {
+        "name": "Price per gallon"
+      }
+    },
+    "sensor": {
+      "total_usage": {
+        "name": "Total usage"
+      },
+      "total_spend": {
+        "name": "Total spend"
+      },
+      "last_delivery": {
+        "name": "Last delivery"
+      }
+    }
+  },
+  "services": {
+    "record_delivery": {
+      "name": "Record delivery",
+      "description": "Record a propane tank fill as durable ledger data and backdated usage and cost statistics.",
+      "fields": {
+        "delivery_date": {
+          "name": "Delivery date",
+          "description": "The date printed on the delivery ticket or bill."
+        },
+        "gallons": {
+          "name": "Gallons delivered",
+          "description": "The number of US gallons added to the tank."
+        },
+        "price_per_gallon": {
+          "name": "Price per gallon",
+          "description": "The billed commodity price for one US gallon."
+        }
+      }
+    }
+  }
+}

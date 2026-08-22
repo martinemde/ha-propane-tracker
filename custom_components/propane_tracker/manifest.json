@@ -1,0 +1,14 @@
+{
+  "domain": "propane_tracker",
+  "name": "Propane Tracker",
+  "version": "0.1.0",
+  "codeowners": ["@martinemde"],
+  "config_flow": true,
+  "single_config_entry": true,
+  "dependencies": ["recorder"],
+  "documentation": "https://github.com/martinemde/ha-propane-tracker",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/martinemde/ha-propane-tracker/issues",
+  "requirements": []
+}
