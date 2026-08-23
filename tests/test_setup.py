@@ -4,10 +4,15 @@ from unittest.mock import patch
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.propane_tracker.const import DOMAIN
+from custom_components.propane_tracker.const import (
+    CONF_FILL_PERCENT,
+    CONF_METER_UNITS_PER_GALLON,
+    CONF_TANK_CAPACITY,
+    DOMAIN,
+)
 
 
-async def test_setup_creates_native_entry_and_summary_entities(
+async def test_setup_creates_native_entry_and_derived_entities(
     recorder_db_url, hass, recorder_mock
 ) -> None:
     """HACS installation plus config flow is sufficient; no YAML package is needed."""
@@ -15,7 +20,12 @@ async def test_setup_creates_native_entry_and_summary_entities(
         domain=DOMAIN,
         title="Propane Tracker",
         unique_id=DOMAIN,
-        data={},
+        version=2,
+        data={
+            CONF_TANK_CAPACITY: 250,
+            CONF_FILL_PERCENT: 80,
+            CONF_METER_UNITS_PER_GALLON: 26.81,
+        },
     )
     entry.add_to_hass(hass)
 
@@ -26,10 +36,17 @@ async def test_setup_creates_native_entry_and_summary_entities(
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
-    assert hass.states.get("date.propane_delivery_date") is not None
-    assert hass.states.get("number.propane_gallons_delivered") is not None
-    assert hass.states.get("number.propane_price_per_gallon") is not None
-    assert hass.states.get("button.propane_record_delivery") is not None
-    assert hass.states.get("sensor.propane_total_usage") is not None
-    assert hass.states.get("sensor.propane_total_spend") is not None
-    assert hass.states.get("sensor.propane_last_delivery") is not None
+    for entity_id in (
+        "date.propane_delivery_date",
+        "number.propane_gallons_delivered",
+        "number.propane_invoice_total",
+        "button.propane_record_delivery",
+        "sensor.propane_total_delivered",
+        "sensor.propane_total_spend",
+        "sensor.propane_last_delivery",
+        "sensor.propane_tank_level",
+        "sensor.propane_tank_gauge",
+        "sensor.propane_metered_burn",
+        "sensor.propane_days_remaining",
+    ):
+        assert hass.states.get(entity_id) is not None, entity_id

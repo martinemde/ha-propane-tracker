@@ -8,6 +8,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any, Self
 
 MONEY_QUANTUM = Decimal("0.01")
+PRICE_QUANTUM = Decimal("0.001")
 
 
 class LedgerError(ValueError):
@@ -18,7 +19,7 @@ class DuplicateDeliveryError(LedgerError):
     """Raised when a delivery already exists for a date."""
 
 
-def _decimal(value: Any, field: str) -> Decimal:
+def parse_decimal(value: Any, field: str) -> Decimal:
     """Parse a finite decimal value with a useful ledger error."""
     try:
         result = Decimal(str(value))
@@ -29,7 +30,7 @@ def _decimal(value: Any, field: str) -> Decimal:
     return result
 
 
-def _date(value: Any, field: str = "delivery_date") -> date:
+def parse_date(value: Any, field: str = "delivery_date") -> date:
     """Parse an ISO date with a useful ledger error."""
     if isinstance(value, date):
         return value
@@ -39,9 +40,31 @@ def _date(value: Any, field: str = "delivery_date") -> date:
         raise LedgerError(f"{field} must use YYYY-MM-DD format") from err
 
 
-def invoice_cost(gallons: Decimal, price_per_gallon: Decimal) -> Decimal:
-    """Calculate commodity cost using ordinary invoice rounding."""
-    return (gallons * price_per_gallon).quantize(MONEY_QUANTUM, rounding=ROUND_HALF_UP)
+def _money(value: Decimal) -> Decimal:
+    """Round a currency amount the way an invoice does."""
+    return value.quantize(MONEY_QUANTUM, rounding=ROUND_HALF_UP)
+
+
+def _delivery_cost(data: dict[str, Any]) -> Decimal:
+    """Read the invoice total, upgrading a version 1 per-gallon ticket.
+
+    Version 1 derived cost from a per-gallon price and stored both, so a
+    payload carrying both is still cross-checked before it is trusted.
+    """
+    if "price_per_gallon" not in data:
+        return parse_decimal(data.get("cost"), "cost")
+    gallons = parse_decimal(data.get("gallons"), "gallons")
+    price = parse_decimal(data.get("price_per_gallon"), "price_per_gallon")
+    derived = _money(gallons * price)
+    if "cost" not in data:
+        return derived
+    stored = parse_decimal(data["cost"], "cost")
+    if stored != derived:
+        raise LedgerError(
+            f"stored cost {stored} does not match calculated cost {derived} "
+            f"for {data.get('delivery_date')}"
+        )
+    return stored
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,43 +73,35 @@ class Delivery:
 
     delivery_date: date
     gallons: Decimal
-    price_per_gallon: Decimal
+    cost: Decimal
 
     def __post_init__(self) -> None:
         if self.gallons <= 0:
             raise LedgerError("gallons must be greater than zero")
-        if self.price_per_gallon <= 0:
-            raise LedgerError("price_per_gallon must be greater than zero")
+        if self.cost <= 0:
+            raise LedgerError("cost must be greater than zero")
 
     @property
-    def cost(self) -> Decimal:
-        """Return the rounded commodity cost for this ticket."""
-        return invoice_cost(self.gallons, self.price_per_gallon)
+    def price_per_gallon(self) -> Decimal:
+        """Return the effective per-gallon price this ticket worked out to."""
+        return (self.cost / self.gallons).quantize(PRICE_QUANTUM, rounding=ROUND_HALF_UP)
 
     def as_dict(self) -> dict[str, str]:
         """Serialize without losing entered decimal precision."""
         return {
             "delivery_date": self.delivery_date.isoformat(),
             "gallons": str(self.gallons),
-            "price_per_gallon": str(self.price_per_gallon),
             "cost": str(self.cost),
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
-        """Load and integrity-check one stored delivery."""
-        delivery = cls(
-            delivery_date=_date(data.get("delivery_date")),
-            gallons=_decimal(data.get("gallons"), "gallons"),
-            price_per_gallon=_decimal(data.get("price_per_gallon"), "price_per_gallon"),
+        """Load one stored delivery in either storage version."""
+        return cls(
+            delivery_date=parse_date(data.get("delivery_date")),
+            gallons=parse_decimal(data.get("gallons"), "gallons"),
+            cost=_delivery_cost(data),
         )
-        stored_cost = _decimal(data.get("cost"), "cost")
-        if stored_cost != delivery.cost:
-            raise LedgerError(
-                f"stored cost {stored_cost} does not match calculated cost "
-                f"{delivery.cost} for {delivery.delivery_date}"
-            )
-        return delivery
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,28 +110,36 @@ class Draft:
 
     delivery_date: date
     gallons: Decimal = Decimal("0")
-    price_per_gallon: Decimal = Decimal("0")
+    cost: Decimal = Decimal("0")
 
     @property
-    def estimated_cost(self) -> Decimal:
-        """Return a display estimate without requiring a valid delivery yet."""
-        return invoice_cost(self.gallons, self.price_per_gallon)
+    def price_per_gallon(self) -> Decimal:
+        """Return the per-gallon price implied by the draft, or zero."""
+        if self.gallons <= 0:
+            return Decimal("0")
+        return (self.cost / self.gallons).quantize(PRICE_QUANTUM, rounding=ROUND_HALF_UP)
 
     def as_dict(self) -> dict[str, str]:
         """Serialize the current draft."""
         return {
             "delivery_date": self.delivery_date.isoformat(),
             "gallons": str(self.gallons),
-            "price_per_gallon": str(self.price_per_gallon),
+            "cost": str(self.cost),
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], *, default_date: date) -> Self:
-        """Load a draft, accepting a missing draft from the first version."""
+        """Load a draft, accepting a missing or version 1 draft."""
+        gallons = parse_decimal(data.get("gallons", "0"), "draft gallons")
+        if "cost" in data:
+            cost = parse_decimal(data["cost"], "draft cost")
+        else:
+            price = parse_decimal(data.get("price_per_gallon", "0"), "draft price_per_gallon")
+            cost = _money(gallons * price)
         return cls(
-            delivery_date=_date(data.get("delivery_date", default_date)),
-            gallons=_decimal(data.get("gallons", "0"), "draft gallons"),
-            price_per_gallon=_decimal(data.get("price_per_gallon", "0"), "draft price_per_gallon"),
+            delivery_date=parse_date(data.get("delivery_date", default_date)),
+            gallons=gallons,
+            cost=cost,
         )
 
 
@@ -192,3 +215,8 @@ class Ledger:
     def last_delivery(self) -> Delivery | None:
         """Return the newest delivery, if any."""
         return self.deliveries[-1] if self.deliveries else None
+
+    def is_newest(self, delivery_date: date) -> bool:
+        """Report whether a date is at or after every recorded delivery."""
+        last = self.last_delivery
+        return last is None or delivery_date >= last.delivery_date

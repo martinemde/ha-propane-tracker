@@ -4,11 +4,43 @@
     "step": {
       "user": {
         "title": "Set up Propane Tracker",
-        "description": "Create a durable local ledger for propane deliveries and publish backdated usage and cost statistics for the Energy dashboard."
+        "description": "Describe the tank. Deliveries fill it, and a fuel meter on a propane appliance drains it, so the level behaves like a battery's charge. Appliances with no meter are reconciled at each fill.",
+        "data": {
+          "tank_capacity": "Tank water capacity",
+          "fill_percent": "Filled to",
+          "meter_entity": "Consumption meter",
+          "meter_units_per_gallon": "Meter units per gallon"
+        },
+        "data_description": {
+          "tank_capacity": "The nameplate size of the tank, in US gallons.",
+          "fill_percent": "How full the delivery driver leaves the tank. Residential tanks stop at 80%, which is also what the tank's own gauge reads when full.",
+          "meter_entity": "A total-increasing sensor measuring propane burned by one appliance, such as a water heater's accumulated energy.",
+          "meter_units_per_gallon": "How many of that sensor's units equal one gallon of propane. Use 26.81 for kWh, and adjust it if fills say the meter reads high or low."
+        }
       }
     },
     "abort": {
       "already_configured": "Propane Tracker is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Propane tank",
+        "description": "Changing these re-reads the tank model. The delivery ledger is not affected.",
+        "data": {
+          "tank_capacity": "Tank water capacity",
+          "fill_percent": "Filled to",
+          "meter_entity": "Consumption meter",
+          "meter_units_per_gallon": "Meter units per gallon"
+        },
+        "data_description": {
+          "tank_capacity": "The nameplate size of the tank, in US gallons.",
+          "fill_percent": "How full the delivery driver leaves the tank.",
+          "meter_entity": "A total-increasing sensor measuring propane burned by one appliance.",
+          "meter_units_per_gallon": "How many of that sensor's units equal one gallon of propane. Use 26.81 for kWh."
+        }
+      }
     }
   },
   "entity": {
@@ -26,26 +58,38 @@
       "delivery_gallons": {
         "name": "Gallons delivered"
       },
-      "price_per_gallon": {
-        "name": "Price per gallon"
+      "delivery_cost": {
+        "name": "Invoice total"
       }
     },
     "sensor": {
-      "total_usage": {
-        "name": "Total usage"
+      "total_delivered": {
+        "name": "Total delivered"
       },
       "total_spend": {
         "name": "Total spend"
       },
       "last_delivery": {
         "name": "Last delivery"
+      },
+      "tank_level": {
+        "name": "Tank level"
+      },
+      "tank_gauge": {
+        "name": "Tank gauge"
+      },
+      "consumed": {
+        "name": "Metered burn"
+      },
+      "days_remaining": {
+        "name": "Days remaining"
       }
     }
   },
   "services": {
     "record_delivery": {
       "name": "Record delivery",
-      "description": "Record a propane tank fill as durable ledger data and backdated usage and cost statistics.",
+      "description": "Record a propane tank fill as durable ledger data, backdated statistics, and a refill of the tracked tank level.",
       "fields": {
         "delivery_date": {
           "name": "Delivery date",
@@ -54,6 +98,10 @@
         "gallons": {
           "name": "Gallons delivered",
           "description": "The number of US gallons added to the tank."
+        },
+        "cost": {
+          "name": "Invoice total",
+          "description": "What the delivery cost. Give this or price per gallon, not both."
         },
         "price_per_gallon": {
           "name": "Price per gallon",

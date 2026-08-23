@@ -36,8 +36,8 @@ class PropaneRecordDeliveryButton(PropaneEntity, ButtonEntity):
         return {
             "delivery_date": draft.delivery_date.isoformat(),
             "gallons": float(draft.gallons),
+            "cost": float(draft.cost),
             "price_per_gallon": float(draft.price_per_gallon),
-            "estimated_cost": float(draft.estimated_cost),
             "currency": self.hass.config.currency,
         }
 

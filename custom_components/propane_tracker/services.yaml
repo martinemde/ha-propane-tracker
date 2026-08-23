@@ -1,8 +1,8 @@
 record_delivery:
   name: Record delivery
   description: >-
-    Record a propane tank fill as durable ledger data and backdated usage and
-    cost statistics.
+    Record a propane tank fill as durable ledger data, backdated delivery and
+    cost statistics, and a refill of the tracked tank level.
   fields:
     delivery_date:
       name: Delivery date
@@ -23,10 +23,24 @@ record_delivery:
           step: 0.1
           mode: box
           unit_of_measurement: gal
+    cost:
+      name: Invoice total
+      description: >-
+        What the delivery cost. Give this or price_per_gallon, not both.
+      required: false
+      example: 466.88
+      selector:
+        number:
+          min: 0.001
+          max: 100000
+          step: 0.01
+          mode: box
     price_per_gallon:
       name: Price per gallon
-      description: The billed commodity price for one US gallon.
-      required: true
+      description: >-
+        The billed commodity price for one US gallon, multiplied by the
+        delivered gallons to get the invoice total.
+      required: false
       example: 3.249
       selector:
         number:
