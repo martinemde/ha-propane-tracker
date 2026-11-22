@@ -12,7 +12,7 @@ button.
 
 ## How the tank is tracked
 
-There is no sensor inside the tank. Instead:
+Without a liquid-depth sensor, Propane Tracker uses this ledger model:
 
 - **A fill re-anchors the model.** A delivery driver stops at 80% of water
   capacity, so a completed fill puts the tank at a known quantity. Error cannot
@@ -48,6 +48,34 @@ ledger is unaffected.
 The units-per-gallon value is also the calibration knob. If reconciliation
 residuals are consistently negative, the meter reads high — raise it.
 
+## Optional measured inventory
+
+In **Configure**, select a sensor that reports **liquid depth from the bottom**
+of a horizontal cylindrical tank with hemispherical ends, such as tank level
+from Home Assistant's native Mopeka integration. Enter the inside diameter and
+the straight cylinder length (excluding the heads), both in inches. The
+sensor's own distance unit is converted automatically. Tanks with other head
+shapes, vertical tanks, free-space distance, and percentage sensors do not fit
+this model.
+
+For example, a nominal 250 US gal tank with a 30 in outside diameter, 0.199 in
+shell, and a 63.5 in straight section has a 29.602 in inside diameter. Using the
+same radius for both heads models a 248.0 US gal water capacity (about 0.8%
+below nominal). At 557 mm, it reports 199.3 US gal or 80.35% of water capacity.
+The code does not rescale the reading to match the nameplate or the usual 80%
+fill target.
+
+The measured entities work immediately, without a fill or appliance meter.
+They go unavailable on invalid values, a missing source, or two hours without
+an HA depth report. An unchanged value reported again is fresh. The measurements
+track occupied liquid volume, including temperature expansion; they are **not**
+usage meters. Existing modeled entities, delivery history, and the Energy
+configuration are unchanged.
+
+If replacing a custom inventory helper, compare it to the new measured entities
+on a settled reading first. Point dashboard cards and automations to the new
+entities before disabling the old helper. Do not disable the depth sensor.
+
 ## Entities
 
 The integration creates one Propane device:
@@ -58,7 +86,9 @@ The integration creates one Propane device:
 | `number.propane_gallons_delivered` | Gallons input |
 | `number.propane_invoice_total` | What the delivery cost |
 | `button.propane_record_delivery` | Commit the ticket |
-| `sensor.propane_tank_level` | Estimated gallons in the tank |
+| `sensor.propane_remaining` | Measured liquid inventory (optional) |
+| `sensor.propane_measured_tank_level` | Measured percent of geometric water capacity (optional) |
+| `sensor.propane_tank_level` | Modeled gallons in the tank, distinct from measured inventory |
 | `sensor.propane_tank_gauge` | The same level as the tank's own gauge reads it |
 | `sensor.propane_metered_burn` | Cumulative gallons the meter has seen |
 | `sensor.propane_days_remaining` | Runway at the last measured burn rate |

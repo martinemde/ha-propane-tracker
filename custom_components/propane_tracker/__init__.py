@@ -6,7 +6,6 @@ from datetime import date, datetime
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.components.recorder import get_instance
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -140,6 +139,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: PropaneConfigEntry) -> b
     entry.runtime_data = tracker
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     tracker.async_start_meter()
+    tracker.async_start_measurement()
     entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
     return True
 

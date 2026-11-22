@@ -1,6 +1,9 @@
 {
   "title": "Propane Tracker",
   "config": {
+    "error": {
+      "missing_dimension": "Enter a positive dimension for the measured tank."
+    },
     "step": {
       "user": {
         "title": "Set up Propane Tracker",
@@ -9,7 +12,10 @@
           "tank_capacity": "Tank water capacity",
           "fill_percent": "Filled to",
           "meter_entity": "Consumption meter",
-          "meter_units_per_gallon": "Meter units per gallon"
+          "meter_units_per_gallon": "Meter units per gallon",
+          "depth_entity": "Liquid depth sensor (optional)",
+          "inner_diameter": "Tank inside diameter",
+          "straight_length": "Tank straight section length"
         },
         "data_description": {
           "tank_capacity": "The nameplate size of the tank, in US gallons.",
@@ -24,6 +30,9 @@
     }
   },
   "options": {
+    "error": {
+      "missing_dimension": "Enter a positive dimension for the measured tank."
+    },
     "step": {
       "init": {
         "title": "Propane tank",
@@ -32,7 +41,10 @@
           "tank_capacity": "Tank water capacity",
           "fill_percent": "Filled to",
           "meter_entity": "Consumption meter",
-          "meter_units_per_gallon": "Meter units per gallon"
+          "meter_units_per_gallon": "Meter units per gallon",
+          "depth_entity": "Liquid depth sensor (optional)",
+          "inner_diameter": "Tank inside diameter",
+          "straight_length": "Tank straight section length"
         },
         "data_description": {
           "tank_capacity": "The nameplate size of the tank, in US gallons.",
@@ -71,6 +83,12 @@
       },
       "last_delivery": {
         "name": "Last delivery"
+      },
+      "remaining": {
+        "name": "Remaining"
+      },
+      "measured_tank_level": {
+        "name": "Measured tank level"
       },
       "tank_level": {
         "name": "Tank level"

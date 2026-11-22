@@ -28,6 +28,9 @@ STORAGE_VERSION = 2
 
 LITERS_PER_US_GALLON = 3.785411784
 
+CONF_DEPTH_ENTITY = "depth_entity"
+CONF_INNER_DIAMETER = "inner_diameter"
+CONF_STRAIGHT_LENGTH = "straight_length"
 CONF_TANK_CAPACITY = "tank_capacity"
 CONF_FILL_PERCENT = "fill_percent"
 CONF_METER_ENTITY = "meter_entity"

@@ -29,6 +29,11 @@ class SensorKind(StrEnum):
     TANK_GAUGE = "tank_gauge"
     CONSUMED = "consumed"
     DAYS_REMAINING = "days_remaining"
+    REMAINING = "remaining"
+    MEASURED_TANK_LEVEL = "measured_tank_level"
+
+
+MEASURED_SENSORS = (SensorKind.REMAINING, SensorKind.MEASURED_TANK_LEVEL)
 
 
 async def async_setup_entry(
@@ -37,7 +42,11 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up ledger and tank sensors."""
-    async_add_entities(PropaneSensor(entry, kind) for kind in SensorKind)
+    async_add_entities(
+        PropaneSensor(entry, kind)
+        for kind in SensorKind
+        if kind not in MEASURED_SENSORS or entry.runtime_data.measured is not None
+    )
 
 
 class PropaneSensor(PropaneEntity, SensorEntity):
@@ -59,13 +68,13 @@ class PropaneSensor(PropaneEntity, SensorEntity):
             case SensorKind.LAST_DELIVERY:
                 self._attr_icon = "mdi:truck-check"
                 self._attr_device_class = SensorDeviceClass.DATE
-            case SensorKind.TANK_LEVEL:
+            case SensorKind.TANK_LEVEL | SensorKind.REMAINING:
                 self._attr_icon = "mdi:propane-tank"
                 self._attr_device_class = SensorDeviceClass.VOLUME_STORAGE
                 self._attr_native_unit_of_measurement = UnitOfVolume.GALLONS
                 self._attr_state_class = SensorStateClass.MEASUREMENT
                 self._attr_suggested_display_precision = 1
-            case SensorKind.TANK_GAUGE:
+            case SensorKind.TANK_GAUGE | SensorKind.MEASURED_TANK_LEVEL:
                 self._attr_icon = "mdi:gauge"
                 self._attr_native_unit_of_measurement = PERCENTAGE
                 self._attr_state_class = SensorStateClass.MEASUREMENT
@@ -84,7 +93,10 @@ class PropaneSensor(PropaneEntity, SensorEntity):
 
     @property
     def available(self) -> bool:
-        """Report tank sensors as unavailable until a fill anchors the model."""
+        """Report unavailable if the corresponding model or measurement is missing."""
+        if self._kind in MEASURED_SENSORS:
+            measured = self._tracker.measured
+            return measured is not None and measured.gallons is not None
         if self._kind in (SensorKind.TANK_LEVEL, SensorKind.TANK_GAUGE):
             return self._tracker.tank.level is not None
         return True
@@ -109,6 +121,13 @@ class PropaneSensor(PropaneEntity, SensorEntity):
                 if level is None:
                     return None
                 return float(tracker.config.gauge_percent(level))
+            case SensorKind.REMAINING | SensorKind.MEASURED_TANK_LEVEL:
+                measured = tracker.measured
+                if measured is None or measured.gallons is None:
+                    return None
+                if self._kind is SensorKind.REMAINING:
+                    return measured.gallons
+                return 100 * measured.gallons / measured.geometry.capacity
             case SensorKind.CONSUMED:
                 return float(tracker.tank.consumed_gallons)
             case SensorKind.DAYS_REMAINING:
@@ -143,6 +162,13 @@ class PropaneSensor(PropaneEntity, SensorEntity):
                         None if latest is None else float(latest.unmetered_gallons)
                     ),
                 }
+            case SensorKind.REMAINING | SensorKind.MEASURED_TANK_LEVEL:
+                measured = tracker.measured
+                if measured is not None:
+                    return {
+                        "depth_entity": measured.source,
+                        "capacity_gallons": measured.geometry.capacity,
+                    }
             case SensorKind.CONSUMED:
                 return {"meter_entity": tracker.config.meter_entity}
             case SensorKind.DAYS_REMAINING:

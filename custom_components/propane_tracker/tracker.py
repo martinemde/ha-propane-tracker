@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import date
 from decimal import Decimal
-import logging
 from typing import Any
 
 from homeassistant.components.recorder.models import (
@@ -28,9 +28,12 @@ from .const import (
     ATTR_COST,
     ATTR_DELIVERY_DATE,
     ATTR_GALLONS,
+    CONF_DEPTH_ENTITY,
     CONF_FILL_PERCENT,
+    CONF_INNER_DIAMETER,
     CONF_METER_ENTITY,
     CONF_METER_UNITS_PER_GALLON,
+    CONF_STRAIGHT_LENGTH,
     CONF_TANK_CAPACITY,
     COST_STATISTIC_ID,
     DEFAULT_FILL_PERCENT,
@@ -45,8 +48,9 @@ from .const import (
     UNMETERED_STATISTIC_ID,
 )
 from .ledger import Delivery, DuplicateDeliveryError, Ledger, LedgerError
+from .measured import HorizontalTank, MeasuredInventory
 from .meter import ConsumptionMeter
-from .tank import TankConfig, TankState, ZERO, burn_rate
+from .tank import ZERO, TankConfig, TankState, burn_rate
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -86,6 +90,12 @@ class PropaneTracker:
         self._listeners: set[Callable[[], None]] = set()
         self._lock = asyncio.Lock()
         self._unsubscribe_meter: RemoveListener | None = None
+        self._unsubscribe_depth: RemoveListener | None = None
+        self.measured: MeasuredInventory | None = None
+        settings = {**entry.data, **entry.options}
+        if source := settings.get(CONF_DEPTH_ENTITY):
+            geometry = HorizontalTank(settings[CONF_INNER_DIAMETER], settings[CONF_STRAIGHT_LENGTH])
+            self.measured = MeasuredInventory(hass, source, geometry)
 
     @property
     def ledger(self) -> Ledger:
@@ -148,8 +158,17 @@ class PropaneTracker:
         self._unsubscribe_meter = meter.async_start()
 
     @callback
+    def async_start_measurement(self) -> None:
+        """Begin following the configured depth source, if there is one."""
+        if self.measured is not None:
+            self._unsubscribe_depth = self.measured.async_start(self._notify_listeners)
+
+    @callback
     def async_shutdown(self) -> None:
-        """Stop following the consumption meter."""
+        """Stop following the consumption meter and depth source."""
+        if self._unsubscribe_depth is not None:
+            self._unsubscribe_depth()
+            self._unsubscribe_depth = None
         if self._unsubscribe_meter is not None:
             self._unsubscribe_meter()
             self._unsubscribe_meter = None

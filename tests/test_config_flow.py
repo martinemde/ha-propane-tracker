@@ -5,9 +5,12 @@ from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.propane_tracker.const import (
+    CONF_DEPTH_ENTITY,
     CONF_FILL_PERCENT,
+    CONF_INNER_DIAMETER,
     CONF_METER_ENTITY,
     CONF_METER_UNITS_PER_GALLON,
+    CONF_STRAIGHT_LENGTH,
     CONF_TANK_CAPACITY,
     DOMAIN,
 )
@@ -83,3 +86,33 @@ async def test_a_version_one_entry_gains_a_tank(recorder_db_url, hass, recorder_
     assert entry.version == 2
     assert entry.data[CONF_TANK_CAPACITY] == 250
     assert entry.runtime_data.config.full == 200
+
+
+async def test_depth_requires_dimensions_and_can_be_cleared(hass, recorder_mock):
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Propane Tracker",
+        unique_id=DOMAIN,
+        version=2,
+        data={
+            **TANK,
+            CONF_DEPTH_ENTITY: "sensor.depth",
+            CONF_INNER_DIAMETER: 30,
+            CONF_STRAIGHT_LENGTH: 63.5,
+        },
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.runtime_data.measured is not None
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {**TANK, CONF_DEPTH_ENTITY: "sensor.depth"}
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert set(result["errors"]) == {CONF_INNER_DIAMETER, CONF_STRAIGHT_LENGTH}
+    result = await hass.config_entries.options.async_configure(result["flow_id"], TANK)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert entry.runtime_data.measured is None

@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from zoneinfo import ZoneInfo
 
 import pytest
-
 from homeassistant.exceptions import ConfigEntryError, ServiceValidationError
 
 from custom_components.propane_tracker.const import (

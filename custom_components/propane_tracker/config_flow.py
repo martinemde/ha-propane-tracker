@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from math import isfinite
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -22,9 +22,12 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
+    CONF_DEPTH_ENTITY,
     CONF_FILL_PERCENT,
+    CONF_INNER_DIAMETER,
     CONF_METER_ENTITY,
     CONF_METER_UNITS_PER_GALLON,
+    CONF_STRAIGHT_LENGTH,
     CONF_TANK_CAPACITY,
     DEFAULT_FILL_PERCENT,
     DEFAULT_METER_UNITS_PER_GALLON,
@@ -32,6 +35,24 @@ from .const import (
     DOMAIN,
     MAX_TANK_CAPACITY,
 )
+
+
+def _dimension_selector() -> NumberSelector:
+    return NumberSelector(
+        NumberSelectorConfig(
+            min=0.001, step="any", mode=NumberSelectorMode.BOX, unit_of_measurement="in"
+        )
+    )
+
+
+def _measurement_errors(settings: dict[str, Any]) -> dict[str, str]:
+    if not settings.get(CONF_DEPTH_ENTITY):
+        return {}
+    return {
+        key: "missing_dimension"
+        for key in (CONF_INNER_DIAMETER, CONF_STRAIGHT_LENGTH)
+        if not isfinite(settings.get(key, 0)) or settings.get(key, 0) <= 0
+    }
 
 
 def _schema(settings: dict[str, Any]) -> vol.Schema:
@@ -78,6 +99,16 @@ def _schema(settings: dict[str, Any]) -> vol.Schema:
                     mode=NumberSelectorMode.BOX,
                 )
             ),
+            vol.Optional(
+                CONF_DEPTH_ENTITY,
+                description={"suggested_value": settings.get(CONF_DEPTH_ENTITY)},
+            ): EntitySelector(EntitySelectorConfig(domain="sensor")),
+            **{
+                vol.Optional(
+                    key, description={"suggested_value": settings.get(key)}
+                ): _dimension_selector()
+                for key in (CONF_INNER_DIAMETER, CONF_STRAIGHT_LENGTH)
+            },
         }
     )
 
@@ -92,10 +123,13 @@ class PropaneTrackerConfigFlow(ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(DOMAIN)
         self._abort_if_unique_id_configured()
 
-        if user_input is not None:
+        errors = _measurement_errors(user_input or {})
+        if user_input is not None and not errors:
             return self.async_create_entry(title="Propane Tracker", data=user_input)
 
-        return self.async_show_form(step_id="user", data_schema=_schema({}))
+        return self.async_show_form(
+            step_id="user", data_schema=_schema(user_input or {}), errors=errors
+        )
 
     @staticmethod
     @callback
@@ -109,8 +143,14 @@ class PropaneTrackerOptionsFlow(OptionsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Show the tank form with its current values."""
-        if user_input is not None:
-            return self.async_create_entry(data=user_input)
+        errors = _measurement_errors(user_input or {})
+        if user_input is not None and not errors:
+            # Explicitly override a depth source saved by initial setup when cleared.
+            return self.async_create_entry(data={CONF_DEPTH_ENTITY: None, **user_input})
 
         settings = {**self.config_entry.data, **self.config_entry.options}
-        return self.async_show_form(step_id="init", data_schema=_schema(settings))
+        return self.async_show_form(
+            step_id="init",
+            data_schema=_schema(settings if user_input is None else user_input),
+            errors=errors,
+        )
