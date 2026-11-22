@@ -99,6 +99,8 @@ class PropaneSensor(PropaneEntity, SensorEntity):
             return measured is not None and measured.gallons is not None
         if self._kind in (SensorKind.TANK_LEVEL, SensorKind.TANK_GAUGE):
             return self._tracker.tank.level is not None
+        if self._kind is SensorKind.DAYS_REMAINING:
+            return self._tracker.measured is None
         return True
 
     @property

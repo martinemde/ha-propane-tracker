@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+import datetime
 from typing import Any
 
 import voluptuous as vol
@@ -34,14 +34,14 @@ from .const import (
 from .tracker import PropaneConfigEntry, PropaneTracker
 
 
-def _date(value: Any) -> date:
+def _date(value: Any) -> datetime.date:
     """Coerce a service value to an ISO date."""
-    if isinstance(value, datetime):
+    if isinstance(value, datetime.datetime):
         return value.date()
-    if isinstance(value, date):
+    if isinstance(value, datetime.date):
         return value
     try:
-        return date.fromisoformat(str(value))
+        return datetime.date.fromisoformat(str(value))
     except (TypeError, ValueError) as err:
         raise vol.Invalid("must be a date in YYYY-MM-DD format") from err
 

@@ -7,7 +7,7 @@
     "step": {
       "user": {
         "title": "Set up Propane Tracker",
-        "description": "Describe the tank. Deliveries fill it, and a fuel meter on a propane appliance drains it, so the level behaves like a battery's charge. Appliances with no meter are reconciled at each fill.",
+        "description": "Describe the tank. Without a depth sensor, the newest delivery ticket resets the modeled level. A fuel meter tracks burn from one appliance, and each reset reconciles unmetered burn.",
         "data": {
           "tank_capacity": "Tank water capacity",
           "fill_percent": "Filled to",
@@ -107,7 +107,7 @@
   "services": {
     "record_delivery": {
       "name": "Record delivery",
-      "description": "Record a propane tank fill as durable ledger data, backdated statistics, and a refill of the tracked tank level.",
+      "description": "Save a propane receipt to delivery history and update volume and cost statistics. Only the newest receipt resets the modeled tank level, and only if no depth sensor is configured.",
       "fields": {
         "delivery_date": {
           "name": "Delivery date",

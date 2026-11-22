@@ -91,14 +91,15 @@ The integration creates one Propane device:
 | `sensor.propane_tank_level` | Modeled gallons in the tank, distinct from measured inventory |
 | `sensor.propane_tank_gauge` | The same level as the tank's own gauge reads it |
 | `sensor.propane_metered_burn` | Cumulative gallons the meter has seen |
-| `sensor.propane_days_remaining` | Runway at the last measured burn rate |
+| `sensor.propane_days_remaining` | Days left at the last fill-cycle burn rate (no depth sensor configured) |
 | `sensor.propane_total_delivered` | Lifetime gallons delivered |
 | `sensor.propane_total_spend` | Lifetime commodity spend |
 | `sensor.propane_last_delivery` | Newest ticket, with its details as attributes |
 
-`sensor.propane_days_remaining` divides the level by gallons per day across the
-most recent complete fill cycle. Two consecutive tickets measure true
-whole-house burn, metered or not, so this rate includes the range.
+Without a depth sensor, `sensor.propane_days_remaining` divides the modeled level
+by gallons per day across the most recent fill cycle. This estimate uses two
+consecutive tickets and includes unmetered burn. If a depth sensor is configured,
+the estimate is unavailable because receipts do not establish fill cycles.
 
 ## Record a delivery
 
@@ -108,11 +109,14 @@ per-gallon price is derived and shown as an attribute.
 For automations or historical imports, call `propane_tracker.record_delivery`
 with `delivery_date`, `gallons`, and either `cost` or `price_per_gallon`.
 
-Older fills may be entered after newer fills; the ledger is sorted and all later
-cumulative statistics are recalculated. A backdated ticket is bookkeeping only —
-it does not re-anchor the tank, because it says nothing about today's level.
-Only one delivery per calendar date is accepted, which also protects against
-double taps.
+Both methods save the receipt to delivery history and update purchase volume and
+cost statistics. If a depth sensor is configured, a receipt neither records a
+physical fill nor resets the modeled level, even when the sensor is unavailable.
+Without a depth sensor, only the newest receipt re-anchors the modeled tank.
+
+You can enter older receipts after newer ones. The ledger sorts them by date and
+recalculates later cumulative statistics. Only one receipt per calendar date is
+accepted, which also protects against double taps.
 
 ## Energy dashboard
 

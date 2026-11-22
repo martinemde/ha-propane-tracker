@@ -123,7 +123,9 @@ class PropaneTracker:
 
     @property
     def burn_rate(self) -> Decimal | None:
-        """Return measured gallons per day over the most recent fill cycle."""
+        """Estimate gallons per day from the latest unmeasured fill cycle."""
+        if self.measured is not None:
+            return None
         return burn_rate(self._ledger.deliveries)
 
     @property
@@ -248,7 +250,7 @@ class PropaneTracker:
         gallons: float,
         cost: float,
     ) -> Delivery:
-        """Persist one delivery, refill the tank, then rebuild statistics."""
+        """Save a receipt and rebuild statistics, anchoring only an unmeasured tank."""
         if delivery_date > dt_util.now().date():
             raise ServiceValidationError(
                 f"Delivery date {delivery_date.isoformat()} is in the future"
@@ -271,10 +273,10 @@ class PropaneTracker:
                     f"{err}. This also prevents a double tap from recording the same bill twice."
                 ) from err
 
-            # Only the newest ticket describes the tank as it stands now. A
-            # backdated bill is history for the statistics, not a refill.
+            # With depth configured, a receipt is bookkeeping even if the
+            # depth source is unavailable. Otherwise only the newest ticket anchors.
             tank = self._tank
-            if self._ledger.is_newest(delivery.delivery_date):
+            if self.measured is None and self._ledger.is_newest(delivery.delivery_date):
                 tank = tank.with_fill(delivery, self.config)
 
             # The ledger is the source of truth. Save it before touching the
